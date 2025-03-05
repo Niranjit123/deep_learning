@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local/Non-Local Face Classification</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f8fa;
+            color: #333;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+        
+        h1 {
+            color: #2d3748;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        
+        h2 {
+            color: #2d3748;
+            margin-bottom: 16px;
+        }
+        
+        p {
+            color: #718096;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        
+        .file-type-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .toggle-btn {
+            background: #f1f5f9;
+            border: none;
+            padding: 8px 16px;
+            margin: 0 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+        }
+        
+        .toggle-btn.active {
+            background: #3a86ff;
+            color: white;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: #3a86ff;
+            background-color: rgba(58, 134, 255, 0.03);
+        }
+        
+        .upload-area svg {
+            stroke: #64748b;
+            margin-bottom: 16px;
+        }
+        
+        .upload-area h3 {
+            color: #64748b;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+        
+        .file-input-wrapper {
+            margin-bottom: 16px;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            margin-top: 12px;
+            color: #3a86ff;
+        }
+        
+        .btn {
+            background: #3a86ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            background: #2a75f0;
+        }
+        
+        .btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            margin: 20px auto;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #3a86ff;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .result-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+        
+        @media (min-width: 640px) {
+            .result-container {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+        }
+        
+        .result-image {
+            width: 250px;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .result-card {
+            flex: 1;
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        
+        .classification {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        
+        .confidence {
+            font-weight: 500;
+            margin-bottom: 16px;
+            color: #64748b;
+            text-align: center;
+        }
+        
+        #additionalInfo {
+            color: #64748b;
+            margin-top: 16px;
+            text-align: center;
+        }
+        
+        .video-faces-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+        
+        .face-thumbnail {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .face-thumbnail:hover {
+            border-color: #3a86ff;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Local/Non-Local Classification</h1>
+            <p>Upload an image or video to identify if the person is local or non-local</p>
+            
+            <div class="file-type-toggle">
+                <button class="toggle-btn active" id="imageToggle" onclick="toggleFileType('image')">Image</button>
+                <button class="toggle-btn" id="videoToggle" onclick="toggleFileType('video')">Video</button>
+            </div>
+            
+            <div class="upload-area" id="uploadArea">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <h3>Drag & Drop or Click to Upload</h3>
+                <div class="file-input-wrapper">
+                    <button class="btn">Select File</button>
+                    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/jpg,video/mp4,video/avi,video/mov,video/mkv">
+                </div>
+                <p class="file-name" id="fileName"></p>
+            </div>
+            
+            <button class="btn" id="uploadBtn" onclick="uploadFile()" disabled>Analyze</button>
+            
+            <div class="spinner" id="spinner"></div>
+        </div>
+        
+        <div class="card hidden" id="resultCard">
+            <h2>Classification Result</h2>
+            <div class="result-container">
+                <img class="result-image" id="resultImage" src="" alt="Detected Face">
+                <div class="result-card">
+                    <div class="classification" id="classification"></div>
+                    <div class="confidence" id="confidence"></div>
+                    <div id="additionalInfo"></div>
+                </div>
+            </div>
+            
+            <!-- Container for video faces -->
+            <div class="video-faces-container" id="videoFacesContainer"></div>
+        </div>
+    </div>
+    
+    <script>
+        let currentFileType = 'image';
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const spinner = document.getElementById('spinner');
+        const resultCard = document.getElementById('resultCard');
+        const uploadArea = document.getElementById('uploadArea');
+        const resultImage = document.getElementById('resultImage');
+        const videoFacesContainer = document.getElementById('videoFacesContainer');
+        
+        // Handle file selection
+        fileInput.addEventListener('change', function(e) {
+            if (fileInput.files.length > 0) {
+                fileName.textContent = fileInput.files[0].name;
+                uploadBtn.disabled = false;
+                
+                // Preview image if it's an image file
+                if (fileInput.files[0].type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        resultImage.src = e.target.result;
+                    };
+                    reader.readAsDataURL(fileInput.files[0]);
+                } else {
+                    resultImage.src = '';
+                }
+            } else {
+                fileName.textContent = '';
+                uploadBtn.disabled = true;
+            }
+        });
+        
+        // Handle drag and drop
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#3a86ff';
+            uploadArea.style.backgroundColor = 'rgba(58, 134, 255, 0.05)';
+        });
+        
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ccc';
+            uploadArea.style.backgroundColor = 'transparent';
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ccc';
+            uploadArea.style.backgroundColor = 'transparent';
+            
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                if (fileInput.files.length > 0) {
+                    fileName.textContent = fileInput.files[0].name;
+                    uploadBtn.disabled = false;
+                    
+                    // Preview image if it's an image file
+                    if (fileInput.files[0].type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            resultImage.src = e.target.result;
+                        };
+                        reader.readAsDataURL(fileInput.files[0]);
+                    } else {
+                        resultImage.src = '';
+                    }
+                }
+            }
+        });
+        
+        // Toggle between image and video
+        function toggleFileType(type) {
+            currentFileType = type;
+            document.getElementById('imageToggle').classList.toggle('active', type === 'image');
+            document.getElementById('videoToggle').classList.toggle('active', type === 'video');
+            
+            // Update file input accept attribute
+            if (type === 'image') {
+                fileInput.setAttribute('accept', 'image/jpeg,image/png,image/jpg');
+            } else {
+                fileInput.setAttribute('accept', 'video/mp4,video/avi,video/mov,video/mkv');
+            }
+            
+            // Clear previous selection
+            fileInput.value = '';
+            fileName.textContent = '';
+            uploadBtn.disabled = true;
+            resultCard.classList.add('hidden');
+            videoFacesContainer.innerHTML = '';
+        }
+        
+        // Set main result image from a face
+        function setMainFaceImage(imgSrc) {
+            resultImage.src = imgSrc;
+        }
+        
+        // Upload file
+        function uploadFile() {
+            if (fileInput.files.length === 0) {
+                alert('Please select a file first.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            // Show loading spinner
+            spinner.style.display = 'block';
+            uploadBtn.disabled = true;
+            resultCard.classList.add('hidden');
+            videoFacesContainer.innerHTML = '';
+            
+            fetch('http://127.0.0.1:5000/classify', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide spinner
+                spinner.style.display = 'none';
+                uploadBtn.disabled = false;
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Show result
+                resultCard.classList.remove('hidden');
+                
+                // Set classification result
+                const classification = document.getElementById('classification');
+                classification.textContent = data.classification.toUpperCase();
+                classification.style.color = data.classification === 'local' ? '#2ecc71' : '#e74c3c';
+                
+                // Set confidence
+                document.getElementById('confidence').textContent = 
+                    `Confidence: ${data.confidence.toFixed(2)}%`;
+                
+                // Handle different file types
+                if (data.file_type === 'image') {
+                    // For image files, just display the face
+                    if (data.face_image) {
+                        resultImage.src = data.face_image;
+                    }
+                    document.getElementById('additionalInfo').textContent = '';
+                    videoFacesContainer.innerHTML = '';
+                } 
+                else if (data.file_type === 'video') {
+                    // For video files, display multiple faces
+                    const additionalInfo = document.getElementById('additionalInfo');
+                    additionalInfo.textContent = `Processed ${data.frames_processed} frames, found faces in ${data.frames_with_faces} frames`;
+                    
+                    // Clear previous faces
+                    videoFacesContainer.innerHTML = '';
+                    
+                    // Check if we have face detections
+                    if (data.face_detections && data.face_detections.length > 0) {
+                        // Set the main result image to the first face
+                        if (data.face_detections[0].face_image) {
+                            resultImage.src = data.face_detections[0].face_image;
+                        }
+                        
+                        // Display all face thumbnails
+                        data.face_detections.forEach((detection, index) => {
+                            if (detection.face_image) {
+                                const imgElement = document.createElement('img');
+                                imgElement.src = detection.face_image;
+                                imgElement.className = 'face-thumbnail';
+                                imgElement.alt = `Face at frame ${detection.frame_number}`;
+                                imgElement.title = `Frame ${detection.frame_number} - ${detection.classification} (${detection.confidence.toFixed(2)}%)`;
+                                
+                                // Add click handler to set as main image
+                                imgElement.addEventListener('click', () => {
+                                    setMainFaceImage(detection.face_image);
+                                });
+                                
+                                videoFacesContainer.appendChild(imgElement);
+                            }
+                        });
+                        
+                        // Add message if there are more faces than shown
+                        if (data.total_detections > data.face_detections.length) {
+                            const moreInfo = document.createElement('p');
+                            moreInfo.textContent = `+ ${data.total_detections - data.face_detections.length} more face detections`;
+                            moreInfo.style.color = '#64748b';
+                            moreInfo.style.width = '100%';
+                            moreInfo.style.textAlign = 'center';
+                            moreInfo.style.marginTop = '12px';
+                            videoFacesContainer.appendChild(moreInfo);
+                        }
+                    } else {
+                        // No face detections to display
+                        resultImage.src = '';
+                        const noFaces = document.createElement('p');
+                        noFaces.textContent = 'No face images available from video analysis';
+                        noFaces.style.color = '#64748b';
+                        videoFacesContainer.appendChild(noFaces);
+                    }
+                }
+                
+                // Scroll to result
+                resultCard.scrollIntoView({ behavior: 'smooth' });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                spinner.style.display = 'none';
+                uploadBtn.disabled = false;
+                alert('Error processing request. Please try again.');
+            });
+        }
+        
+        // Make upload area clickable
+        uploadArea.addEventListener('click', function() {
+            fileInput.click();
+        });
+    </script>
+</body>
+</html>
